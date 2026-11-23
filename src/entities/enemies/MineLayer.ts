@@ -16,19 +16,21 @@ export class MineLayer extends Enemy {
     this.mineCooldown = prng.range(2.0, 4.0);
   }
 
-  public update(dt: number): void {
+  public update(dt: number, noBoundaries: boolean = false): void {
     if (this.dead) return;
     if (this.hitFlashTimer > 0) this.hitFlashTimer -= dt;
 
     this.x += this.vx * dt;
     this.y += this.vy * dt;
 
-    // Boundary bounce
-    const pad = this.radius;
-    if (this.x < pad) { this.x = pad; this.vx = Math.abs(this.vx); }
-    else if (this.x > CONFIG.WORLD_WIDTH - pad) { this.x = CONFIG.WORLD_WIDTH - pad; this.vx = -Math.abs(this.vx); }
-    if (this.y < pad) { this.y = pad; this.vy = Math.abs(this.vy); }
-    else if (this.y > CONFIG.WORLD_HEIGHT - pad) { this.y = CONFIG.WORLD_HEIGHT - pad; this.vy = -Math.abs(this.vy); }
+    // Boundary bounce (disabled in noBoundaries / God Mode)
+    if (!noBoundaries) {
+      const pad = this.radius;
+      if (this.x < pad) { this.x = pad; this.vx = Math.abs(this.vx); }
+      else if (this.x > CONFIG.WORLD_WIDTH - pad) { this.x = CONFIG.WORLD_WIDTH - pad; this.vx = -Math.abs(this.vx); }
+      if (this.y < pad) { this.y = pad; this.vy = Math.abs(this.vy); }
+      else if (this.y > CONFIG.WORLD_HEIGHT - pad) { this.y = CONFIG.WORLD_HEIGHT - pad; this.vy = -Math.abs(this.vy); }
+    }
   }
 
   public updateAI(

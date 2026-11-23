@@ -71,6 +71,7 @@ export class Game {
   // Debug toggles
   public debugGodMode: boolean = false;
   public debugInfFuel: boolean = false;
+  private godModeSwarmTimer: number = 0;
 
   // Loop timing
   private lastTime: number = 0;
@@ -106,7 +107,7 @@ export class Game {
     this.audio = new AudioManager();
     this.hud = new HUD();
     this.debugPanel = new DebugPanel(this);
-    this.settingsMenu = new SettingsMenu(this.audio, this.input);
+    this.settingsMenu = new SettingsMenu(this.audio, this.input, this);
 
     this.setupWindowListeners();
     this.resizeCanvas();
@@ -204,6 +205,50 @@ export class Game {
       this.enemies.push(new Raider(x, y, this.prng));
     } else if (type === 'MINELAYER') {
       this.enemies.push(new MineLayer(x, y, this.prng));
+    }
+  }
+
+  public setGodMode(enabled: boolean): void {
+    this.debugGodMode = enabled;
+    this.player.isGodMode = enabled;
+    this.weaponSystem.isGodMode = enabled;
+
+    if (enabled) {
+      this.player.hull = this.player.maxHull;
+      this.player.shield = this.player.maxShield;
+      this.player.fuel = this.player.maxFuel;
+      this.spawnEnemySwarm(15);
+      this.audio.playBossAlarm();
+      this.waveManager.showWaveBanner('⚡ GOD MODE ACTIVE ⚡', 'UNLIMITED STATS & RELENTLESS SWARM', '#ffd700');
+      this.floatingTexts.spawn(this.player.x, this.player.y - 50, '⚡ GOD MODE ACTIVE: INFINITE STATS & NO BOUNDARIES', '#ffd700', 16);
+    } else {
+      this.waveManager.showWaveBanner('GOD MODE DISABLED', 'STANDARD COMBAT SYSTEMS ACTIVE', '#00f0ff');
+    }
+    this.settingsMenu.refreshValues();
+  }
+
+  public spawnEnemySwarm(count: number = 15): void {
+    const types: ('DRONE' | 'RAIDER' | 'MINELAYER')[] = ['DRONE', 'DRONE', 'RAIDER', 'RAIDER', 'MINELAYER'];
+    for (let i = 0; i < count; i++) {
+      const type = types[i % types.length];
+      const angle = (i / count) * Math.PI * 2 + (this.prng.next() - 0.5) * 0.4;
+      const dist = this.prng.range(420, 850);
+      let x = this.player.x + Math.cos(angle) * dist;
+      let y = this.player.y + Math.sin(angle) * dist;
+
+      // If not in god mode, clamp inside sector boundaries
+      if (!this.debugGodMode) {
+        x = Math.max(150, Math.min(CONFIG.WORLD_WIDTH - 150, x));
+        y = Math.max(150, Math.min(CONFIG.WORLD_HEIGHT - 150, y));
+      }
+
+      if (type === 'DRONE') {
+        this.enemies.push(new Drone(x, y));
+      } else if (type === 'RAIDER') {
+        this.enemies.push(new Raider(x, y, this.prng));
+      } else {
+        this.enemies.push(new MineLayer(x, y, this.prng));
+      }
     }
   }
 
@@ -320,18 +365,32 @@ export class Game {
     if (this.debugGodMode) {
       this.player.hull = this.player.maxHull;
       this.player.shield = this.player.maxShield;
+      this.player.fuel = this.player.maxFuel;
+      this.player.isGodMode = true;
+      this.weaponSystem.isGodMode = true;
+
+      // Maintain continuous swarm pressure in God Mode
+      this.godModeSwarmTimer += fixedDt;
+      if (this.godModeSwarmTimer >= 2.5 && this.enemies.length < 16) {
+        this.godModeSwarmTimer = 0;
+        this.spawnEnemySwarm(4);
+      }
+    } else {
+      this.player.isGodMode = false;
+      this.weaponSystem.isGodMode = false;
     }
     if (this.debugInfFuel) {
       this.player.fuel = this.player.maxFuel;
     }
 
-    // Update Player physics
+    // Update Player physics (noBoundaries is enabled in God Mode)
     this.player.updatePhysics(
       fixedDt,
       this.input.thrust,
       this.input.steer,
       this.input.brake,
-      this.particles
+      this.particles,
+      this.debugGodMode
     );
 
     // Audio: thruster engine sound modulation
@@ -432,7 +491,7 @@ export class Game {
           this.audio.playExplosion('small');
         }
       );
-      this.enemies[i].update(fixedDt);
+      this.enemies[i].update(fixedDt, this.debugGodMode);
     }
 
     // Update Boss AI
@@ -559,7 +618,7 @@ export class Game {
     this.camera.applyTransform(this.ctx);
 
     // 1. Starfield, Nebulae & Arena Boundaries
-    this.starfield.render(this.ctx, this.camera);
+    this.starfield.render(this.ctx, this.camera, this.debugGodMode);
 
     // 2. Procedural Events (Derelict salvage & Gravity well singularity)
     this.eventManager.render(this.ctx, this.camera);
@@ -637,6 +696,8 @@ export class Game {
     }
     const pickupRadarData = this.pickups.map(p => ({ x: p.x, y: p.y, color: p.color }));
 
+    const isMobile = InputManager.isTouchDevice() || window.innerWidth <= 1024;
+
     this.hud.render(
       this.ctx,
       width,
@@ -648,14 +709,18 @@ export class Game {
       this.fps,
       this.seed,
       radarThreats,
-      pickupRadarData
+      pickupRadarData,
+      isMobile,
+      this.debugGodMode
     );
 
     // 15. Wave Announcement Banner
     this.waveManager.renderBanner(this.ctx, width, height);
 
-    // 16. Settings gear button (top right corner, next to radar)
-    this.renderSettingsButton(width, height);
+    // 16. Settings gear button (render on desktop; mobile has top bar button)
+    if (!isMobile) {
+      this.renderSettingsButton(width, height);
+    }
 
     // 17. State Overlays (Paused, Game Over)
     if (this.state === GameState.PAUSED) {

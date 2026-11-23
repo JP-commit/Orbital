@@ -20,23 +20,35 @@ export class HUD {
     fps: number,
     seed: number,
     threats: RadarThreat[] = [],
-    pickups: { x: number; y: number; color: string }[] = []
+    pickups: { x: number; y: number; color: string }[] = [],
+    isMobileMode: boolean = false,
+    isGodMode: boolean = false
   ): void {
     ctx.save();
 
     // 1. Top-Left Status Panel: Hull, Shield, Fuel Bars
     const panelX = 20;
-    const panelY = 20;
-    const barWidth = 180;
+    const panelY = isMobileMode ? 64 : 20; // Lower on mobile to clear fullscreen button (top: 15..50)
+    const barWidth = isMobileMode ? 140 : 180;
     const barHeight = 12;
 
     ctx.fillStyle = 'rgba(5, 15, 25, 0.85)';
-    ctx.strokeStyle = 'rgba(0, 240, 255, 0.4)';
-    ctx.lineWidth = 1;
+    ctx.strokeStyle = isGodMode ? '#ffd700' : 'rgba(0, 240, 255, 0.4)';
+    ctx.lineWidth = isGodMode ? 1.5 : 1;
+    ctx.shadowColor = isGodMode ? '#ffd700' : 'transparent';
+    ctx.shadowBlur = isGodMode ? 8 : 0;
     ctx.beginPath();
     ctx.roundRect(panelX - 10, panelY - 10, barWidth + 80, 115, 6);
     ctx.fill();
     ctx.stroke();
+
+    // God Mode Badge on Status Panel
+    if (isGodMode) {
+      ctx.font = 'bold 10px "Courier New", monospace';
+      ctx.fillStyle = '#ffd700';
+      ctx.textAlign = 'left';
+      ctx.fillText('⚡ GOD MODE ACTIVE', panelX, panelY - 14);
+    }
 
     // Hull Bar
     this.drawBar(
@@ -45,10 +57,11 @@ export class HUD {
       panelY + 5,
       barWidth,
       barHeight,
-      player.hull,
+      isGodMode ? player.maxHull : player.hull,
       player.maxHull,
       '#ff3366',
-      'HULL'
+      'HULL',
+      isGodMode
     );
 
     // Shield Bar
@@ -58,28 +71,30 @@ export class HUD {
       panelY + 30,
       barWidth,
       barHeight,
-      player.shield,
+      isGodMode ? player.maxShield : player.shield,
       player.maxShield,
       '#00e5ff',
-      'SHIELD'
+      'SHIELD',
+      isGodMode
     );
 
     // Fuel Bar
-    const fuelColor = player.fuel < 25 ? '#ff3333' : '#ffb300';
+    const fuelColor = isGodMode ? '#ffd700' : player.fuel < 25 ? '#ff3333' : '#ffb300';
     this.drawBar(
       ctx,
       panelX + 60,
       panelY + 55,
       barWidth,
       barHeight,
-      player.fuel,
+      isGodMode ? player.maxFuel : player.fuel,
       player.maxFuel,
       fuelColor,
-      'FUEL'
+      'FUEL',
+      isGodMode
     );
 
-    // Low Fuel Warning Banner
-    if (player.fuel < 25 && !player.dead) {
+    // Low Fuel Warning Banner (Suppressed in God Mode)
+    if (!isGodMode && player.fuel < 25 && !player.dead) {
       const blink = Math.floor(Date.now() / 250) % 2 === 0;
       if (blink) {
         ctx.fillStyle = '#ff3333';
@@ -88,35 +103,64 @@ export class HUD {
       }
     }
 
-    // 2. Weapon Card (Bottom-Left)
-    this.drawWeaponCard(ctx, 20, height - 80, weapon);
+    // 2. Weapon Card (Top-Left under status on mobile; Bottom-Left on desktop)
+    const weaponY = isMobileMode ? panelY + 120 : height - 80;
+    this.drawWeaponCard(ctx, 20, weaponY, weapon, isGodMode);
 
     // 3. Top-Center Wave & Score Banner
     ctx.textAlign = 'center';
-    ctx.font = 'bold 22px "Courier New", monospace';
+    ctx.font = isMobileMode ? 'bold 18px "Courier New", monospace' : 'bold 22px "Courier New", monospace';
     ctx.fillStyle = '#ffffff';
     ctx.shadowColor = '#00f0ff';
     ctx.shadowBlur = 8;
-    ctx.fillText(`SCORE: ${score.toLocaleString()}`, width / 2, 35);
+    ctx.fillText(`SCORE: ${score.toLocaleString()}`, width / 2, isMobileMode ? 28 : 35);
 
-    ctx.font = '14px "Courier New", monospace';
-    ctx.fillStyle = '#00f0ff';
+    ctx.font = isMobileMode ? '12px "Courier New", monospace' : '14px "Courier New", monospace';
+    ctx.fillStyle = isGodMode ? '#ffd700' : '#00f0ff';
     ctx.shadowBlur = 4;
-    ctx.fillText(`SECTOR WAVE ${wave}`, width / 2, 58);
+    const sectorText = isGodMode ? `SECTOR WAVE ${wave} (UNLIMITED SWARM)` : `SECTOR WAVE ${wave}`;
+    ctx.fillText(sectorText, width / 2, isMobileMode ? 46 : 58);
 
-    // 4. Top-Right Telemetry & Seed
-    ctx.textAlign = 'right';
-    ctx.font = '12px "Courier New", monospace';
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-    ctx.shadowBlur = 0;
-    ctx.fillText(`FPS: ${Math.round(fps)}`, width - 20, 30);
-    ctx.fillText(`SEED: ${seed}`, width - 20, 48);
     const speed = Math.round(Math.hypot(player.vx, player.vy));
-    ctx.fillText(`VELOCITY: ${speed} KM/S`, width - 20, 66);
-    ctx.fillText(`POS: ${Math.round(player.x)}, ${Math.round(player.y)}`, width - 20, 84);
 
-    // 5. Tactical Radar / Minimap (Bottom-Right)
-    this.drawRadar(ctx, width - 140, height - 140, 120, player, threats, pickups);
+    // 4. Tactical Radar / Minimap Positioning
+    // In mobile mode: TOP RIGHT below the pause button!
+    // In desktop mode: BOTTOM RIGHT!
+    let radarX = 0;
+    let radarY = 0;
+    let radarSize = 0;
+
+    if (isMobileMode) {
+      radarSize = 110;
+      radarX = width - radarSize - 16;
+      radarY = 56; // Directly below mobile top-right pause & settings buttons (which sit at y: 15..50)
+      this.drawRadar(ctx, radarX, radarY, radarSize, player, threats, pickups);
+
+      // Mobile Telemetry cleanly tucked under the radar
+      const teleY = radarY + radarSize + 14;
+      ctx.textAlign = 'right';
+      ctx.font = '10px "Courier New", monospace';
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+      ctx.shadowBlur = 0;
+      ctx.fillText(`FPS: ${Math.round(fps)} | SEED: ${seed}`, width - 16, teleY);
+      ctx.fillText(`${speed} KM/S | (${Math.round(player.x)}, ${Math.round(player.y)})`, width - 16, teleY + 13);
+    } else {
+      // Desktop: Minimap at bottom right
+      radarSize = 120;
+      radarX = width - 140;
+      radarY = height - 140;
+      this.drawRadar(ctx, radarX, radarY, radarSize, player, threats, pickups);
+
+      // Desktop Telemetry at top right
+      ctx.textAlign = 'right';
+      ctx.font = '12px "Courier New", monospace';
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+      ctx.shadowBlur = 0;
+      ctx.fillText(`FPS: ${Math.round(fps)}`, width - 20, 30);
+      ctx.fillText(`SEED: ${seed}`, width - 20, 48);
+      ctx.fillText(`VELOCITY: ${speed} KM/S`, width - 20, 66);
+      ctx.fillText(`POS: ${Math.round(player.x)}, ${Math.round(player.y)}`, width - 20, 84);
+    }
 
     ctx.restore();
   }
@@ -125,11 +169,12 @@ export class HUD {
     ctx: CanvasRenderingContext2D,
     x: number,
     y: number,
-    weapon: WeaponState
+    weapon: WeaponState,
+    isGodMode: boolean = false
   ): void {
     ctx.save();
     ctx.fillStyle = 'rgba(5, 15, 25, 0.85)';
-    ctx.strokeStyle = 'rgba(0, 240, 255, 0.4)';
+    ctx.strokeStyle = isGodMode ? '#ffd700' : 'rgba(0, 240, 255, 0.4)';
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.roundRect(x, y, 190, 60, 6);
@@ -143,7 +188,7 @@ export class HUD {
       LASER: '#00ffaa',
       MISSILE: '#ff5500',
     };
-    const col = wpnColors[weapon.type] || '#ffffff';
+    const col = isGodMode ? '#ffd700' : wpnColors[weapon.type] || '#ffffff';
 
     ctx.font = 'bold 12px "Courier New", monospace';
     ctx.fillStyle = col;
@@ -156,7 +201,10 @@ export class HUD {
     ctx.font = '11px "Courier New", monospace';
     ctx.fillStyle = '#ffffff';
 
-    if (weapon.type === 'BLASTER') {
+    if (isGodMode) {
+      ctx.fillStyle = '#ffd700';
+      ctx.fillText('AMMO: ∞ (UNLIMITED)', x + 12, y + 42);
+    } else if (weapon.type === 'BLASTER') {
       ctx.fillText('AMMO: ∞ (STANDARD)', x + 12, y + 42);
     } else if (weapon.type === 'LASER') {
       const remainingSec = Math.max(0, weapon.duration).toFixed(1);
@@ -183,7 +231,8 @@ export class HUD {
     val: number,
     maxVal: number,
     color: string,
-    label: string
+    label: string,
+    isGodMode: boolean = false
   ): void {
     ctx.save();
     ctx.textAlign = 'right';
@@ -208,7 +257,8 @@ export class HUD {
     ctx.font = '9px "Courier New", monospace';
     ctx.fillStyle = '#ffffff';
     ctx.shadowBlur = 0;
-    ctx.fillText(`${Math.round(val)}/${maxVal}`, x + w / 2, y + h - 3);
+    const valueText = isGodMode ? '∞' : `${Math.round(val)}/${maxVal}`;
+    ctx.fillText(valueText, x + w / 2, y + h - 3);
 
     ctx.restore();
   }
@@ -223,8 +273,8 @@ export class HUD {
     pickups: { x: number; y: number; color: string }[] = []
   ): void {
     ctx.save();
-    ctx.fillStyle = 'rgba(5, 15, 25, 0.85)';
-    ctx.strokeStyle = 'rgba(0, 240, 255, 0.5)';
+    ctx.fillStyle = 'rgba(5, 15, 25, 0.88)';
+    ctx.strokeStyle = 'rgba(0, 240, 255, 0.55)';
     ctx.lineWidth = 1.5;
     ctx.strokeRect(x, y, size, size);
     ctx.fillRect(x, y, size, size);
@@ -245,15 +295,17 @@ export class HUD {
       const t = threats[i];
       const tx = x + t.x * scaleX;
       const ty = y + t.y * scaleY;
-      if (t.type === 'enemy') {
-        ctx.fillStyle = '#ff0033';
-        ctx.fillRect(tx - 1.5, ty - 1.5, 3, 3);
-      } else if (t.type === 'mine') {
-        ctx.fillStyle = '#ff8800';
-        ctx.fillRect(tx - 1, ty - 1, 2, 2);
-      } else {
-        ctx.fillStyle = 'rgba(245, 158, 11, 0.7)';
-        ctx.fillRect(tx - 1, ty - 1, 2, 2);
+      if (tx >= x && tx <= x + size && ty >= y && ty <= y + size) {
+        if (t.type === 'enemy') {
+          ctx.fillStyle = '#ff0033';
+          ctx.fillRect(tx - 1.5, ty - 1.5, 3, 3);
+        } else if (t.type === 'mine') {
+          ctx.fillStyle = '#ff8800';
+          ctx.fillRect(tx - 1, ty - 1, 2, 2);
+        } else {
+          ctx.fillStyle = 'rgba(245, 158, 11, 0.7)';
+          ctx.fillRect(tx - 1, ty - 1, 2, 2);
+        }
       }
     }
 
@@ -261,15 +313,19 @@ export class HUD {
     for (let i = 0; i < pickups.length; i++) {
       const px = x + pickups[i].x * scaleX;
       const py = y + pickups[i].y * scaleY;
-      ctx.fillStyle = pickups[i].color;
-      ctx.beginPath();
-      ctx.arc(px, py, 2.0, 0, Math.PI * 2);
-      ctx.fill();
+      if (px >= x && px <= x + size && py >= y && py <= y + size) {
+        ctx.fillStyle = pickups[i].color;
+        ctx.beginPath();
+        ctx.arc(px, py, 2.0, 0, Math.PI * 2);
+        ctx.fill();
+      }
     }
 
-    // Player blip
-    const px = x + player.x * scaleX;
-    const py = y + player.y * scaleY;
+    // Player blip (clamped inside radar if player flies outside world bounds)
+    const rawPx = x + player.x * scaleX;
+    const rawPy = y + player.y * scaleY;
+    const px = Math.max(x + 3, Math.min(x + size - 3, rawPx));
+    const py = Math.max(y + 3, Math.min(y + size - 3, rawPy));
 
     ctx.fillStyle = '#00ffff';
     ctx.shadowColor = '#00ffff';
@@ -282,11 +338,11 @@ export class HUD {
     ctx.strokeStyle = '#00ffff';
     ctx.beginPath();
     ctx.moveTo(px, py);
-    ctx.lineTo(px + Math.cos(player.rotation) * 8, py + Math.sin(player.rotation) * 8);
+    ctx.lineTo(px + Math.cos(player.rotation) * 7, py + Math.sin(player.rotation) * 7);
     ctx.stroke();
 
     ctx.font = '9px "Courier New", monospace';
-    ctx.fillStyle = 'rgba(0, 240, 255, 0.7)';
+    ctx.fillStyle = 'rgba(0, 240, 255, 0.8)';
     ctx.textAlign = 'left';
     ctx.fillText('SECTOR RADAR', x + 4, y - 4);
 

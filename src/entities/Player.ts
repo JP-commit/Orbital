@@ -18,6 +18,7 @@ export class Player extends Entity {
   public isOutOffuel: boolean = false;
   public hitFlashTimer: number = 0;
   public shieldHitTimer: number = 0;
+  public isGodMode: boolean = false;
 
   // Invulnerability on spawn / respawn (seconds)
   public invulnerabilityTimer: number = 2.0;
@@ -32,7 +33,8 @@ export class Player extends Entity {
     thrustInput: number,
     steerInput: number,
     brakeInput: boolean,
-    particles: ParticleSystem
+    particles: ParticleSystem,
+    noBoundaries: boolean = false
   ): void {
     if (this.dead) return;
 
@@ -41,13 +43,19 @@ export class Player extends Entity {
     if (this.hitFlashTimer > 0) this.hitFlashTimer -= dt;
     if (this.shieldHitTimer > 0) this.shieldHitTimer -= dt;
 
-    // Fuel consumption
+    // Fuel consumption (unlimited if noBoundaries/godMode)
     const isBurningThrust = thrustInput > 0.05 && this.fuel > 0;
-    if (isBurningThrust) {
+    if (isBurningThrust && !noBoundaries) {
       this.fuel = Math.max(0, this.fuel - CONFIG.PLAYER.FUEL_BURN_RATE * thrustInput * dt);
     }
     // Idle life-support drain
-    this.fuel = Math.max(0, this.fuel - CONFIG.PLAYER.FUEL_IDLE_RATE * dt);
+    if (!noBoundaries) {
+      this.fuel = Math.max(0, this.fuel - CONFIG.PLAYER.FUEL_IDLE_RATE * dt);
+    } else {
+      this.fuel = this.maxFuel;
+      this.shield = this.maxShield;
+      this.hull = this.maxHull;
+    }
     this.isOutOffuel = this.fuel <= 0;
 
     // Steering
@@ -61,7 +69,7 @@ export class Player extends Entity {
     this.isBraking = brakeInput;
 
     if (isBurningThrust) {
-      const accel = CONFIG.PLAYER.ACCELERATION * thrustInput;
+      const accel = (noBoundaries ? CONFIG.PLAYER.ACCELERATION * 1.3 : CONFIG.PLAYER.ACCELERATION) * thrustInput;
       this.vx += Math.cos(this.rotation) * accel * dt;
       this.vy += Math.sin(this.rotation) * accel * dt;
 
@@ -77,24 +85,22 @@ export class Player extends Entity {
     // Velocity damping: Newtonian drift or Retro-thruster braking
     const currentSpeed = Math.hypot(this.vx, this.vy);
     if (brakeInput) {
-      // Retro thrusters apply heavy braking
       const brakeFactor = Math.max(0, 1 - CONFIG.PLAYER.BRAKE_DAMPING * dt);
       this.vx *= brakeFactor;
       this.vy *= brakeFactor;
 
-      // Small brake spark particles
       if (currentSpeed > 30 && Math.random() < 0.3) {
         particles.emitBurst(this.x, this.y, 1, '#00e5ff', 0.4);
       }
     } else {
-      // Subtle space vacuum drag
       const dragFactor = Math.max(0, 1 - CONFIG.PLAYER.VACUUM_DAMPING * dt);
       this.vx *= dragFactor;
       this.vy *= dragFactor;
     }
 
-    // Velocity clamp
-    const maxAllowedSpeed = this.isOutOffuel ? CONFIG.PLAYER.EMERGENCY_SOLAR_SPEED : CONFIG.PLAYER.MAX_SPEED;
+    // Velocity clamp (higher in god mode / no boundaries)
+    const baseMaxSpeed = noBoundaries ? CONFIG.PLAYER.MAX_SPEED * 1.6 : CONFIG.PLAYER.MAX_SPEED;
+    const maxAllowedSpeed = this.isOutOffuel ? CONFIG.PLAYER.EMERGENCY_SOLAR_SPEED : baseMaxSpeed;
     if (currentSpeed > maxAllowedSpeed) {
       const ratio = maxAllowedSpeed / currentSpeed;
       this.vx *= ratio;
@@ -105,21 +111,23 @@ export class Player extends Entity {
     this.x += this.vx * dt;
     this.y += this.vy * dt;
 
-    // World Boundary collision & soft repulsion
-    const padding = this.radius;
-    if (this.x < padding) {
-      this.x = padding;
-      this.vx = Math.abs(this.vx) * 0.5;
-    } else if (this.x > CONFIG.WORLD_WIDTH - padding) {
-      this.x = CONFIG.WORLD_WIDTH - padding;
-      this.vx = -Math.abs(this.vx) * 0.5;
-    }
-    if (this.y < padding) {
-      this.y = padding;
-      this.vy = Math.abs(this.vy) * 0.5;
-    } else if (this.y > CONFIG.WORLD_HEIGHT - padding) {
-      this.y = CONFIG.WORLD_HEIGHT - padding;
-      this.vy = -Math.abs(this.vy) * 0.5;
+    // World Boundary collision & soft repulsion (DISABLED when noBoundaries is true!)
+    if (!noBoundaries) {
+      const padding = this.radius;
+      if (this.x < padding) {
+        this.x = padding;
+        this.vx = Math.abs(this.vx) * 0.5;
+      } else if (this.x > CONFIG.WORLD_WIDTH - padding) {
+        this.x = CONFIG.WORLD_WIDTH - padding;
+        this.vx = -Math.abs(this.vx) * 0.5;
+      }
+      if (this.y < padding) {
+        this.y = padding;
+        this.vy = Math.abs(this.vy) * 0.5;
+      } else if (this.y > CONFIG.WORLD_HEIGHT - padding) {
+        this.y = CONFIG.WORLD_HEIGHT - padding;
+        this.vy = -Math.abs(this.vy) * 0.5;
+      }
     }
 
     // Shield passive regeneration
@@ -137,7 +145,7 @@ export class Player extends Entity {
   }
 
   public takeDamage(amount: number, particles?: ParticleSystem): void {
-    if (this.dead || this.invulnerabilityTimer > 0) return;
+    if (this.dead || this.invulnerabilityTimer > 0 || this.isGodMode) return;
 
     this.shieldRechargeTimer = CONFIG.PLAYER.SHIELD_RECHARGE_DELAY;
 

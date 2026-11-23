@@ -19,17 +19,19 @@ export class Raider extends Enemy {
     this.circleDirection = prng.chance(0.5) ? 1 : -1;
   }
 
-  public update(dt: number): void {
+  public update(dt: number, noBoundaries: boolean = false): void {
     if (this.dead) return;
     if (this.hitFlashTimer > 0) this.hitFlashTimer -= dt;
 
     this.x += this.vx * dt;
     this.y += this.vy * dt;
 
-    // Bounds clamp
-    const pad = this.radius;
-    this.x = Math.max(pad, Math.min(CONFIG.WORLD_WIDTH - pad, this.x));
-    this.y = Math.max(pad, Math.min(CONFIG.WORLD_HEIGHT - pad, this.y));
+    // Bounds clamp (disabled in noBoundaries / God Mode)
+    if (!noBoundaries) {
+      const pad = this.radius;
+      this.x = Math.max(pad, Math.min(CONFIG.WORLD_WIDTH - pad, this.x));
+      this.y = Math.max(pad, Math.min(CONFIG.WORLD_HEIGHT - pad, this.y));
+    }
   }
 
   public updateAI(

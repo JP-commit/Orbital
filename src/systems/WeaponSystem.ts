@@ -21,6 +21,7 @@ export class WeaponSystem {
     maxDuration: 0,
   };
 
+  public isGodMode: boolean = false;
   public isLaserActive: boolean = false;
   public laserRay = { startX: 0, startY: 0, endX: 0, endY: 0 };
 
@@ -61,11 +62,15 @@ export class WeaponSystem {
       this.fireCooldownTimer -= dt;
     }
 
-    // Laser duration countdown
+    // Laser duration countdown (never depletes in God Mode)
     if (this.currentWeapon.type === 'LASER') {
-      this.currentWeapon.duration -= dt;
-      if (this.currentWeapon.duration <= 0) {
-        this.setWeapon('BLASTER');
+      if (!this.isGodMode) {
+        this.currentWeapon.duration -= dt;
+        if (this.currentWeapon.duration <= 0) {
+          this.setWeapon('BLASTER');
+        }
+      } else {
+        this.currentWeapon.duration = this.currentWeapon.maxDuration || 9.0;
       }
     }
 
@@ -177,8 +182,10 @@ export class WeaponSystem {
             false
           );
         }
-        this.currentWeapon.ammo--;
-        if (this.currentWeapon.ammo <= 0) this.setWeapon('BLASTER');
+        if (!this.isGodMode) {
+          this.currentWeapon.ammo--;
+          if (this.currentWeapon.ammo <= 0) this.setWeapon('BLASTER');
+        }
         break;
       }
 
@@ -205,8 +212,10 @@ export class WeaponSystem {
             false
           );
         }
-        this.currentWeapon.ammo--;
-        if (this.currentWeapon.ammo <= 0) this.setWeapon('BLASTER');
+        if (!this.isGodMode) {
+          this.currentWeapon.ammo--;
+          if (this.currentWeapon.ammo <= 0) this.setWeapon('BLASTER');
+        }
         break;
       }
 
@@ -247,8 +256,10 @@ export class WeaponSystem {
             nearestTarget
           );
         }
-        this.currentWeapon.ammo--;
-        if (this.currentWeapon.ammo <= 0) this.setWeapon('BLASTER');
+        if (!this.isGodMode) {
+          this.currentWeapon.ammo--;
+          if (this.currentWeapon.ammo <= 0) this.setWeapon('BLASTER');
+        }
         break;
       }
     }

@@ -29,6 +29,8 @@ export abstract class Enemy extends Entity {
     return false;
   }
 
+  public abstract override update(dt: number, noBoundaries?: boolean): void;
+
   public abstract updateAI(
     dt: number,
     player: Player,

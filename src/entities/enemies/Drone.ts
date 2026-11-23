@@ -16,17 +16,19 @@ export class Drone extends Enemy {
     this.ramDamage = cfg.DAMAGE;
   }
 
-  public update(dt: number): void {
+  public update(dt: number, noBoundaries: boolean = false): void {
     if (this.dead) return;
     if (this.hitFlashTimer > 0) this.hitFlashTimer -= dt;
 
     this.x += this.vx * dt;
     this.y += this.vy * dt;
 
-    // Arena boundary clamp
-    const pad = this.radius;
-    this.x = Math.max(pad, Math.min(CONFIG.WORLD_WIDTH - pad, this.x));
-    this.y = Math.max(pad, Math.min(CONFIG.WORLD_HEIGHT - pad, this.y));
+    // Arena boundary clamp (disabled in noBoundaries / God Mode)
+    if (!noBoundaries) {
+      const pad = this.radius;
+      this.x = Math.max(pad, Math.min(CONFIG.WORLD_WIDTH - pad, this.x));
+      this.y = Math.max(pad, Math.min(CONFIG.WORLD_HEIGHT - pad, this.y));
+    }
   }
 
   public updateAI(

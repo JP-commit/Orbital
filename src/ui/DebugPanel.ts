@@ -106,9 +106,9 @@ export class DebugPanel {
     // Hook up buttons
     const btnGod = this.container.querySelector('#btn-godmode') as HTMLButtonElement;
     btnGod.onclick = () => {
-      this.game.debugGodMode = !this.game.debugGodMode;
+      this.game.setGodMode(!this.game.debugGodMode);
       btnGod.textContent = `Toggle God Mode (${this.game.debugGodMode ? 'ON' : 'OFF'})`;
-      btnGod.style.borderColor = this.game.debugGodMode ? '#39ff14' : '#00f0ff';
+      btnGod.style.borderColor = this.game.debugGodMode ? '#ffd700' : '#00f0ff';
     };
 
     const btnFuel = this.container.querySelector('#btn-inffuel') as HTMLButtonElement;
