@@ -460,7 +460,13 @@ export class Game {
             }
           );
         }
-      }
+      },
+      (shakeTrauma) => {
+        if (this.settingsMenu.visualSettings.screenShake) {
+          this.camera.addTrauma(shakeTrauma);
+        }
+      },
+      this.particles
     );
 
     // SFX for weapon discharge

@@ -69,14 +69,15 @@ You pilot an agile starfighter stranded in a treacherous deep-space asteroid sec
 - Procedural irregular polygon vertices with seeded angular jitter.
 - Large asteroids fracture into 2 Mediums; Mediums split into 2 Smalls; Smalls shatter into debris and drop loot.
 
-### 3. Weapons Arsenal
-| Weapon | Description | Ammo / Duration |
-| :--- | :--- | :--- |
-| **Standard Blaster** | Cyan laser bolt, high accuracy and reliability | Infinite |
-| **Spread Shot** | 5-way wide fan blast; devastating against swarms | 75 rounds |
-| **Rapid Vulcan** | High-velocity dual-mount plasma gatling gun | 200 rounds |
-| **Laser Beam** | Piercing continuous green ray that shreds multiple targets | 9.0 seconds |
-| **Homing Missiles** | Dual self-steering ordnance tracking nearest hostiles | 25 salvos |
+### 3. Weapons Arsenal & Newtonian Recoil
+Every weapon exerts authentic Newtonian counter-thrust impulse and visual gun-kick opposite to the ship's firing vector:
+| Weapon | Description | Ammo / Duration | Recoil Kick | Visual / Camera Effect |
+| :--- | :--- | :--- | :--- | :--- |
+| **Standard Blaster** | High-velocity cyan plasma bolt | Infinite | Moderate (16 px/s) | Crisp 3.5px hull snap & muzzle spark |
+| **Spread Shot** | 5-way wide kinetic shotgun fan blast | 75 rounds | Heavy (56 px/s) | Massive 7.5px kickback & camera shudder |
+| **Rapid Vulcan** | Dual alternating wing plasma gatling | 200 rounds | Micro-pulse (5.5 px/s) | Rapid buzzing hull jitter & steady counter-drift |
+| **Laser Beam** | Piercing continuous green ray | 9.0 seconds | Radiation pressure (32 px/s) | Sustained photon pushback & micro-hum |
+| **Homing Missiles** | Dual tracking kinetic ordnance | 25 salvos | Ordnance kick (38 px/s) | Solid 5.0px kick & orange rocket back-blast |
 
 ### 4. Hostile Enemy Types
 - **Chaser Drone**: Fast kamikaze interceptor that hunts down and rams the player.

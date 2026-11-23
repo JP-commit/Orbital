@@ -19,6 +19,7 @@ export class Player extends Entity {
   public hitFlashTimer: number = 0;
   public shieldHitTimer: number = 0;
   public isGodMode: boolean = false;
+  public recoilOffset: number = 0; // Visual gun-kick offset
 
   // Invulnerability on spawn / respawn (seconds)
   public invulnerabilityTimer: number = 2.0;
@@ -26,6 +27,16 @@ export class Player extends Entity {
   constructor(x: number, y: number) {
     super(x, y, CONFIG.PLAYER.RADIUS, 'player');
     this.rotation = -Math.PI / 2; // Facing upwards initially
+  }
+
+  public applyRecoil(force: number, visualKick: number = 3): void {
+    if (this.dead) return;
+    // Physical velocity impulse in the opposite direction of ship facing angle
+    this.vx -= Math.cos(this.rotation) * force;
+    this.vy -= Math.sin(this.rotation) * force;
+
+    // Visual gun kickback offset along the longitudinal axis of the ship
+    this.recoilOffset = Math.min(10, this.recoilOffset + visualKick);
   }
 
   public updatePhysics(
@@ -42,6 +53,7 @@ export class Player extends Entity {
     if (this.invulnerabilityTimer > 0) this.invulnerabilityTimer -= dt;
     if (this.hitFlashTimer > 0) this.hitFlashTimer -= dt;
     if (this.shieldHitTimer > 0) this.shieldHitTimer -= dt;
+    if (this.recoilOffset > 0) this.recoilOffset = Math.max(0, this.recoilOffset - dt * 28);
 
     // Fuel consumption (unlimited if noBoundaries/godMode)
     const isBurningThrust = thrustInput > 0.05 && this.fuel > 0;
@@ -192,6 +204,9 @@ export class Player extends Entity {
     ctx.save();
     ctx.translate(this.x, this.y);
     ctx.rotate(this.rotation);
+    if (this.recoilOffset > 0) {
+      ctx.translate(-this.recoilOffset, 0);
+    }
 
     // Hit Flash
     const isFlash = this.hitFlashTimer > 0;

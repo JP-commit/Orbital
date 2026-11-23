@@ -2,6 +2,7 @@ import { Projectile } from '../entities/Projectile';
 import { Player } from '../entities/Player';
 import { CONFIG } from '../config';
 import { Entity } from '../entities/Entity';
+import { ParticleSystem } from './ParticleSystem';
 
 export type WeaponType = 'BLASTER' | 'SPREAD' | 'RAPID' | 'LASER' | 'MISSILE';
 
@@ -87,7 +88,9 @@ export class WeaponSystem {
     isFiring: boolean,
     potentialTargets: Entity[] = [],
     dt: number = 1 / 60,
-    onLaserHit?: (target: Entity, damage: number, hitX: number, hitY: number) => void
+    onLaserHit?: (target: Entity, damage: number, hitX: number, hitY: number) => void,
+    onRecoil?: (cameraTrauma: number) => void,
+    particles?: ParticleSystem
   ): void {
     this.isLaserActive = false;
     if (!isFiring || player.dead) return;
@@ -99,12 +102,18 @@ export class WeaponSystem {
     if (this.currentWeapon.type === 'LASER') {
       // Continuous Laser Beam Ray-Cast
       this.isLaserActive = true;
-      const range = CONFIG.WEAPONS.LASER.RANGE;
+      const laserCfg = CONFIG.WEAPONS.LASER;
+      player.applyRecoil(laserCfg.RECOIL_PER_SEC * dt, laserCfg.VISUAL_RECOIL);
+      if (onRecoil && Math.random() < 0.25) {
+        onRecoil(0.015);
+      }
+
+      const range = laserCfg.RANGE;
       const endX = noseX + Math.cos(angle) * range;
       const endY = noseY + Math.sin(angle) * range;
       this.laserRay = { startX: noseX, startY: noseY, endX, endY };
 
-      const laserDmg = CONFIG.WEAPONS.LASER.DAMAGE_PER_SEC * dt;
+      const laserDmg = laserCfg.DAMAGE_PER_SEC * dt;
 
       // Piercing ray-to-circle intersection
       for (let i = 0; i < potentialTargets.length; i++) {
@@ -140,6 +149,10 @@ export class WeaponSystem {
       case 'BLASTER': {
         const cfg = CONFIG.WEAPONS.BLASTER;
         this.fireCooldownTimer = 1 / cfg.FIRE_RATE;
+        player.applyRecoil(cfg.RECOIL, cfg.VISUAL_RECOIL);
+        if (onRecoil) onRecoil(0.04);
+        if (particles) particles.emitBurst(noseX, noseY, 2, cfg.COLOR, 0.4);
+
         const p = this.getFreeProjectile();
         if (p) {
           p.spawn(
@@ -161,6 +174,10 @@ export class WeaponSystem {
       case 'SPREAD': {
         const cfg = CONFIG.WEAPONS.SPREAD;
         this.fireCooldownTimer = 1 / cfg.FIRE_RATE;
+        player.applyRecoil(cfg.RECOIL, cfg.VISUAL_RECOIL);
+        if (onRecoil) onRecoil(0.14);
+        if (particles) particles.emitBurst(noseX, noseY, 6, cfg.COLOR, 0.8);
+
         const count = cfg.COUNT;
         const halfSpread = cfg.SPREAD_ANGLE / 2;
         const step = cfg.SPREAD_ANGLE / (count - 1);
@@ -192,10 +209,15 @@ export class WeaponSystem {
       case 'RAPID': {
         const cfg = CONFIG.WEAPONS.RAPID;
         this.fireCooldownTimer = 1 / cfg.FIRE_RATE;
+        player.applyRecoil(cfg.RECOIL, cfg.VISUAL_RECOIL);
+        if (onRecoil) onRecoil(0.02);
+
         // Alternating wing mounts
         const wingOffset = (Math.random() > 0.5 ? 1 : -1) * 8;
         const perpX = Math.cos(angle + Math.PI / 2) * wingOffset;
         const perpY = Math.sin(angle + Math.PI / 2) * wingOffset;
+        if (particles) particles.emitBurst(noseX + perpX, noseY + perpY, 1, cfg.COLOR, 0.3);
+
         const p = this.getFreeProjectile();
         if (p) {
           const jitter = (Math.random() - 0.5) * 0.08;
@@ -222,6 +244,9 @@ export class WeaponSystem {
       case 'MISSILE': {
         const cfg = CONFIG.WEAPONS.MISSILE;
         this.fireCooldownTimer = 1 / cfg.FIRE_RATE;
+        player.applyRecoil(cfg.RECOIL, cfg.VISUAL_RECOIL);
+        if (onRecoil) onRecoil(0.09);
+        if (particles) particles.emitBurst(player.x, player.y, 4, '#ff9900', 0.6);
 
         // Find nearest threat in front
         let nearestTarget: Entity | null = null;

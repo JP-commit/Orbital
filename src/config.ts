@@ -40,6 +40,8 @@ export const CONFIG = {
       LIFETIME: 1.6,
       COLOR: '#00ffff',
       AMMO: Infinity,
+      RECOIL: 16, // px/s backward kick per shot
+      VISUAL_RECOIL: 3.5, // px hull kickback
     },
     SPREAD: {
       NAME: 'Spread Shot',
@@ -51,6 +53,8 @@ export const CONFIG = {
       LIFETIME: 1.2,
       COLOR: '#ff007f',
       DEFAULT_AMMO: 75,
+      RECOIL: 56, // Heavy shotgun kickback
+      VISUAL_RECOIL: 7.5,
     },
     RAPID: {
       NAME: 'Rapid Vulcan',
@@ -60,6 +64,8 @@ export const CONFIG = {
       LIFETIME: 1.4,
       COLOR: '#ffe600',
       DEFAULT_AMMO: 200,
+      RECOIL: 5.5, // Rapid micro-pulses
+      VISUAL_RECOIL: 1.8,
     },
     LASER: {
       NAME: 'Laser Beam',
@@ -68,6 +74,8 @@ export const CONFIG = {
       DAMAGE_PER_SEC: 120,
       DURATION: 9.0, // seconds
       COLOR: '#39ff14',
+      RECOIL_PER_SEC: 32, // Continuous photon radiation pressure
+      VISUAL_RECOIL: 0.8,
     },
     MISSILE: {
       NAME: 'Homing Missiles',
@@ -79,6 +87,8 @@ export const CONFIG = {
       LIFETIME: 3.2,
       COLOR: '#ff5500',
       DEFAULT_AMMO: 25,
+      RECOIL: 38, // Ordnance ejection back-blast
+      VISUAL_RECOIL: 5.0,
     }
   },
 
